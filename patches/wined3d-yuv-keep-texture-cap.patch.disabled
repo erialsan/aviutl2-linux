@@ -1,0 +1,29 @@
+--- a/dlls/wined3d/utils.c
++++ b/dlls/wined3d/utils.c
+@@ -3601,8 +3601,24 @@
+         if (!adapter->shader_backend->shader_color_fixup_supported(format->f.color_fixup)
+                 || !adapter->fragment_pipe->color_fixup_supported(format->f.color_fixup))
+         {
+-            TRACE("[FAILED]\n");
+-            format_clear_caps(&format->f, WINED3D_FORMAT_CAP_TEXTURE);
++            /* Keep CAP_TEXTURE for packed/planar YUV formats. The fixed
++             * function fragment pipe cannot perform the YUV->RGB fixup on
++             * modern core-profile GL, but D3D11 video applications sample
++             * these textures directly through their own shaders and therefore
++             * do not need the WineD3D-side fixup. Dropping CAP_TEXTURE here
++             * rejects CreateTexture2D(..., BIND_SHADER_RESOURCE) with
++             * E_INVALIDARG, which breaks AviUtl2's compressed-AVI loader. */
++            if (format->f.id == WINED3DFMT_YUY2 || format->f.id == WINED3DFMT_UYVY
++                    || format->f.id == WINED3DFMT_YV12 || format->f.id == WINED3DFMT_NV12
++                    || format->f.id == WINED3DFMT_NV12_PLANAR)
++            {
++                TRACE("[SKIPPED] (YUV format, keeping CAP_TEXTURE)\n");
++            }
++            else
++            {
++                TRACE("[FAILED]\n");
++                format_clear_caps(&format->f, WINED3D_FORMAT_CAP_TEXTURE);
++            }
+         }
+         else
+         {

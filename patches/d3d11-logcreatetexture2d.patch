@@ -1,0 +1,22 @@
+--- a/dlls/d3d11/device.c
++++ b/dlls/d3d11/device.c
+@@ -4078,7 +4078,19 @@
+     TRACE("iface %p, desc %p, data %p, texture %p.\n", iface, desc, data, texture);
+ 
+     if (FAILED(hr = d3d_texture2d_create(device, desc, NULL, data, &object)))
++    {
++        WARN("CreateTexture2D failed hr %#lx: Width=%u Height=%u MipLevels=%u ArraySize=%u "
++                "Format=%u Wined3dFormat=%u Usage=%u BindFlags=%#x CPUAccessFlags=%#x MiscFlags=%#x "
++                "SampleCount=%u SampleQuality=%u.\n",
++                hr, desc ? desc->Width : 0, desc ? desc->Height : 0,
++                desc ? desc->MipLevels : 0, desc ? desc->ArraySize : 0,
++                desc ? desc->Format : 0,
++                desc ? (unsigned int)wined3dformat_from_dxgi_format(desc->Format) : 0,
++                desc ? desc->Usage : 0, desc ? desc->BindFlags : 0, desc ? desc->CPUAccessFlags : 0,
++                desc ? desc->MiscFlags : 0, desc ? desc->SampleDesc.Count : 0,
++                desc ? desc->SampleDesc.Quality : 0);
+         return hr;
++    }
+ 
+     *texture = &object->ID3D11Texture2D_iface;
+ 

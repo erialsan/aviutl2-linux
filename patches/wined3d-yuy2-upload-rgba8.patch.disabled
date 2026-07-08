@@ -1,0 +1,165 @@
+--- a/dlls/wined3d/utils.c	2026-07-05 19:03:09.723221124 +0900
++++ b/dlls/wined3d/utils.c	2026-07-05 19:56:13.071894309 +0900
+@@ -1198,6 +1198,119 @@
+     }
+ }
+ 
++static void convert_yuy2_upload_b8g8r8x8(const BYTE *src, BYTE *dst,
++        unsigned int src_row_pitch, unsigned int src_slice_pitch,
++        unsigned int dst_row_pitch, unsigned int dst_slice_pitch,
++        unsigned int width, unsigned int height, unsigned int depth)
++{
++    unsigned int x, y, z;
++
++    WARN("YUY2_UPLOAD_CALLED: converting %ux%ux%u, src_row_pitch=%u dst_row_pitch=%u\n",
++            width, height, depth, src_row_pitch, dst_row_pitch);
++
++    for (z = 0; z < depth; z++)
++    {
++        for (y = 0; y < height; y++)
++        {
++            const BYTE *src_row = src + z * src_slice_pitch + y * src_row_pitch;
++            BYTE *dst_row = dst + z * dst_slice_pitch + y * dst_row_pitch;
++
++            for (x = 0; x < width; x += 2)
++            {
++                BYTE Y0, Y1, U, V;
++                int y_scaled, u_off, v_off;
++                int r, g, b;
++
++                /* YUY2 macro-pixel: Y0, U, Y1, V */
++                Y0 = src_row[x * 2];
++                U = src_row[x * 2 + 1];
++                Y1 = src_row[x * 2 + 2];
++                V = src_row[x * 2 + 3];
++
++                /* BT.601 limited-range. Scaled by 1000 for integer math. */
++                y_scaled = ((int)Y0 - 16) * 1164;
++                u_off = (int)U - 128;
++                v_off = (int)V - 128;
++
++                r = (y_scaled + v_off * 1596) / 1000;
++                g = (y_scaled - u_off * 392 - v_off * 813) / 1000;
++                b = (y_scaled + u_off * 2017) / 1000;
++
++                dst_row[x * 4]     = (BYTE)((unsigned int)b > 255 ? ((b >> 31) ^ 255) : b);
++                dst_row[x * 4 + 1] = (BYTE)((unsigned int)g > 255 ? ((g >> 31) ^ 255) : g);
++                dst_row[x * 4 + 2] = (BYTE)((unsigned int)r > 255 ? ((r >> 31) ^ 255) : r);
++                dst_row[x * 4 + 3] = 255;
++
++                y_scaled = ((int)Y1 - 16) * 1164;
++
++                r = (y_scaled + v_off * 1596) / 1000;
++                g = (y_scaled - u_off * 392 - v_off * 813) / 1000;
++                b = (y_scaled + u_off * 2017) / 1000;
++
++                dst_row[x * 4 + 4] = (BYTE)((unsigned int)b > 255 ? ((b >> 31) ^ 255) : b);
++                dst_row[x * 4 + 5] = (BYTE)((unsigned int)g > 255 ? ((g >> 31) ^ 255) : g);
++                dst_row[x * 4 + 6] = (BYTE)((unsigned int)r > 255 ? ((r >> 31) ^ 255) : r);
++                dst_row[x * 4 + 7] = 255;
++            }
++        }
++    }
++}
++
++static void convert_uyvy_upload_b8g8r8x8(const BYTE *src, BYTE *dst,
++        unsigned int src_row_pitch, unsigned int src_slice_pitch,
++        unsigned int dst_row_pitch, unsigned int dst_slice_pitch,
++        unsigned int width, unsigned int height, unsigned int depth)
++{
++    unsigned int x, y, z;
++
++    for (z = 0; z < depth; z++)
++    {
++        for (y = 0; y < height; y++)
++        {
++            const BYTE *src_row = src + z * src_slice_pitch + y * src_row_pitch;
++            BYTE *dst_row = dst + z * dst_slice_pitch + y * dst_row_pitch;
++
++            for (x = 0; x < width; x += 2)
++            {
++                BYTE Y0, Y1, U, V;
++                int y_scaled, u_off, v_off;
++                int r, g, b;
++
++                /* UYVY macro-pixel: U, Y0, V, Y1 */
++                U = src_row[x * 2];
++                Y0 = src_row[x * 2 + 1];
++                V = src_row[x * 2 + 2];
++                Y1 = src_row[x * 2 + 3];
++
++                /* BT.601 limited-range. Scaled by 1000 for integer math. */
++                y_scaled = ((int)Y0 - 16) * 1164;
++                u_off = (int)U - 128;
++                v_off = (int)V - 128;
++
++                r = (y_scaled + v_off * 1596) / 1000;
++                g = (y_scaled - u_off * 392 - v_off * 813) / 1000;
++                b = (y_scaled + u_off * 2017) / 1000;
++
++                dst_row[x * 4]     = (BYTE)((unsigned int)b > 255 ? ((b >> 31) ^ 255) : b);
++                dst_row[x * 4 + 1] = (BYTE)((unsigned int)g > 255 ? ((g >> 31) ^ 255) : g);
++                dst_row[x * 4 + 2] = (BYTE)((unsigned int)r > 255 ? ((r >> 31) ^ 255) : r);
++                dst_row[x * 4 + 3] = 255;
++
++                y_scaled = ((int)Y1 - 16) * 1164;
++
++                r = (y_scaled + v_off * 1596) / 1000;
++                g = (y_scaled - u_off * 392 - v_off * 813) / 1000;
++                b = (y_scaled + u_off * 2017) / 1000;
++
++                dst_row[x * 4 + 4] = (BYTE)((unsigned int)b > 255 ? ((b >> 31) ^ 255) : b);
++                dst_row[x * 4 + 5] = (BYTE)((unsigned int)g > 255 ? ((g >> 31) ^ 255) : g);
++                dst_row[x * 4 + 6] = (BYTE)((unsigned int)r > 255 ? ((r >> 31) ^ 255) : r);
++                dst_row[x * 4 + 7] = 255;
++            }
++        }
++    }
++}
++
+ /* We intentionally don't support WINED3DFMT_D32_UNORM. No hardware driver
+  * supports it on d3d9, and applications get confused when we do.
+  *
+@@ -1241,6 +1354,10 @@
+             GL_RG,                      GL_UNSIGNED_BYTE,                 0,
+             WINED3D_FORMAT_CAP_FILTERING,
+             ARB_TEXTURE_RG,             NULL},
++    {WINED3DFMT_UYVY,                   GL_RGBA8,                         GL_RGBA8,                               0,
++            GL_BGRA,                    GL_UNSIGNED_BYTE,                 4,
++            WINED3D_FORMAT_CAP_TEXTURE | WINED3D_FORMAT_CAP_FILTERING,
++            WINED3D_GL_EXT_NONE,        convert_uyvy_upload_b8g8r8x8},
+     {WINED3DFMT_UYVY,                   GL_LUMINANCE8_ALPHA8,             GL_LUMINANCE8_ALPHA8,                   0,
+             GL_LUMINANCE_ALPHA,         GL_UNSIGNED_BYTE,                 0,
+             WINED3D_FORMAT_CAP_FILTERING,
+@@ -1257,6 +1374,10 @@
+             GL_RG,                      GL_UNSIGNED_BYTE,                 0,
+             WINED3D_FORMAT_CAP_FILTERING,
+             ARB_TEXTURE_RG,             NULL},
++    {WINED3DFMT_YUY2,                   GL_RGBA8,                         GL_RGBA8,                               0,
++            GL_BGRA,                    GL_UNSIGNED_BYTE,                 4,
++            WINED3D_FORMAT_CAP_TEXTURE | WINED3D_FORMAT_CAP_FILTERING,
++            WINED3D_GL_EXT_NONE,        convert_yuy2_upload_b8g8r8x8},
+     {WINED3DFMT_YUY2,                   GL_LUMINANCE8_ALPHA8,             GL_LUMINANCE8_ALPHA8,                   0,
+             GL_LUMINANCE_ALPHA,         GL_UNSIGNED_BYTE,                 0,
+             WINED3D_FORMAT_CAP_FILTERING,
+@@ -3467,8 +3588,20 @@
+         format = get_format_gl_internal(adapter, WINED3DFMT_YUY2);
+         format->f.color_fixup = create_complex_fixup_desc(COMPLEX_FIXUP_YUY2);
+ 
++        if (format->f.upload)
++        {
++            WARN("YUY2 has upload callback, setting color_fixup to IDENTITY.\n");
++            format->f.color_fixup = COLOR_FIXUP_IDENTITY;
++        }
++
+         format = get_format_gl_internal(adapter, WINED3DFMT_UYVY);
+         format->f.color_fixup = create_complex_fixup_desc(COMPLEX_FIXUP_UYVY);
++
++        if (format->f.upload)
++        {
++            WARN("UYVY has upload callback, setting color_fixup to IDENTITY.\n");
++            format->f.color_fixup = COLOR_FIXUP_IDENTITY;
++        }
+     }
+     else if (!gl_info->supported[APPLE_YCBCR_422] && gl_info->supported[APPLE_RGB_422])
+     {

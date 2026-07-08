@@ -1,0 +1,30 @@
+--- a/dlls/wined3d/utils.c	2026-07-05 07:57:24.272815796 +0900
++++ b/dlls/wined3d/utils.c	2026-07-05 07:57:24.305785606 +0900
+@@ -1239,11 +1239,11 @@
+      */
+     {WINED3DFMT_UYVY,                   GL_RG8,                           GL_RG8,                                 0,
+             GL_RG,                      GL_UNSIGNED_BYTE,                 0,
+-            WINED3D_FORMAT_CAP_FILTERING,
++            WINED3D_FORMAT_CAP_TEXTURE | WINED3D_FORMAT_CAP_FILTERING,
+             ARB_TEXTURE_RG,             NULL},
+     {WINED3DFMT_UYVY,                   GL_LUMINANCE8_ALPHA8,             GL_LUMINANCE8_ALPHA8,                   0,
+             GL_LUMINANCE_ALPHA,         GL_UNSIGNED_BYTE,                 0,
+-            WINED3D_FORMAT_CAP_FILTERING,
++            WINED3D_FORMAT_CAP_TEXTURE | WINED3D_FORMAT_CAP_FILTERING,
+             WINED3D_GL_LEGACY_CONTEXT,  NULL},
+     {WINED3DFMT_UYVY,                   GL_RGB_RAW_422_APPLE,             GL_RGB_RAW_422_APPLE,                   0,
+             GL_RGB_422_APPLE,           GL_UNSIGNED_SHORT_8_8_APPLE,      0,
+@@ -1255,11 +1255,11 @@
+             APPLE_YCBCR_422,            NULL},
+     {WINED3DFMT_YUY2,                   GL_RG8,                           GL_RG8,                                 0,
+             GL_RG,                      GL_UNSIGNED_BYTE,                 0,
+-            WINED3D_FORMAT_CAP_FILTERING,
++            WINED3D_FORMAT_CAP_TEXTURE | WINED3D_FORMAT_CAP_FILTERING,
+             ARB_TEXTURE_RG,             NULL},
+     {WINED3DFMT_YUY2,                   GL_LUMINANCE8_ALPHA8,             GL_LUMINANCE8_ALPHA8,                   0,
+             GL_LUMINANCE_ALPHA,         GL_UNSIGNED_BYTE,                 0,
+-            WINED3D_FORMAT_CAP_FILTERING,
++            WINED3D_FORMAT_CAP_TEXTURE | WINED3D_FORMAT_CAP_FILTERING,
+             WINED3D_GL_LEGACY_CONTEXT,  NULL},
+     {WINED3DFMT_YUY2,                   GL_RGB_RAW_422_APPLE,             GL_RGB_RAW_422_APPLE,                   0,
+             GL_RGB_422_APPLE,           GL_UNSIGNED_SHORT_8_8_REV_APPLE,  0,

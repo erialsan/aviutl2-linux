@@ -1,0 +1,10 @@
+--- a/dlls/wined3d/texture_gl.c	2026-06-30 04:32:59.000000000 +0900
++++ b/dlls/wined3d/texture_gl.c	2026-07-05 19:56:13.071894309 +0900
+@@ -1666,6 +1666,7 @@
+ 
+             f = *wined3d_format_gl(src_format);
+             f.f.byte_count = src_format->conv_byte_count;
++            f.f.attrs &= ~WINED3D_FORMAT_ATTR_BLOCKS;
+             src_format = &f.f;
+         }
+ 

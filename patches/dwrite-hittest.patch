@@ -1,0 +1,201 @@
+--- a/dlls/dwrite/layout.c
++++ b/dlls/dwrite/layout.c
+@@ -4375,14 +4375,97 @@
+     return S_OK;
+ }
+ 
++static HRESULT WINAPI dwritetextlayout_HitTestTextPosition(IDWriteTextLayout4 *iface,
++        UINT32 position, BOOL is_trailinghit, FLOAT *point_x, FLOAT *point_y, DWRITE_HIT_TEST_METRICS *metrics);
++
+ static HRESULT WINAPI dwritetextlayout_HitTestPoint(IDWriteTextLayout4 *iface,
+     FLOAT pointX, FLOAT pointY, BOOL* is_trailinghit, BOOL* is_inside, DWRITE_HIT_TEST_METRICS *metrics)
+ {
+-    FIXME("%p, %.8e, %.8e, %p, %p, %p): stub\n", iface, pointX, pointY, is_trailinghit, is_inside, metrics);
++    struct dwrite_textlayout *layout = impl_from_IDWriteTextLayout4(iface);
++    struct layout_line *line, *target_line = NULL;
++    struct layout_effective_run *run, *target_run = NULL;
++    float dummy_x, dummy_y;
++    UINT32 position = 0;
++    HRESULT hr;
++
++    TRACE("%p, %.8e, %.8e, %p, %p, %p.\n", iface, pointX, pointY, is_trailinghit, is_inside, metrics);
++
++    if (FAILED(hr = layout_compute_effective_runs(layout)))
++        return hr;
++
++    *is_trailinghit = FALSE;
++    *is_inside = FALSE;
++    memset(metrics, 0, sizeof(*metrics));
++    metrics->isText = TRUE;
++
++    if (layout->length == 0 || list_empty(&layout->effective_runs))
++        return S_OK;
++
++    /* Pick the line closest vertically. */
++    LIST_FOR_EACH_ENTRY(line, &layout->lines, struct layout_line, entry)
++    {
++        run = LIST_ENTRY(list_head(&line->runs), struct layout_effective_run, line_entry);
++        if (!run)
++            continue;
++        target_line = line;
++        if (pointY < run->origin.y - line->baseline + line->metrics.height)
++            break;
++    }
++
++    if (!target_line)
++        target_line = LIST_ENTRY(list_tail(&layout->lines), struct layout_line, entry);
++
++    /* Pick the run closest horizontally. */
++    LIST_FOR_EACH_ENTRY(run, &target_line->runs, struct layout_effective_run, line_entry)
++    {
++        float left = run->left + run->align_dx;
++        float right = left + run->width;
++
++        target_run = run;
++        if (pointX < right)
++        {
++            if (pointX >= left)
++                *is_inside = TRUE;
++            break;
++        }
++    }
++
++    if (!target_run)
++        target_run = LIST_ENTRY(list_tail(&target_line->runs), struct layout_effective_run, line_entry);
++
++    if (target_run->object)
++    {
++        position = target_run->start_position;
++        if (pointX >= target_run->left + target_run->align_dx + target_run->width / 2.0f)
++            *is_trailinghit = TRUE;
++    }
++    else
++    {
++        unsigned int cluster;
++        float left = target_run->left + target_run->align_dx;
++
++        position = target_run->start_position;
++        for (cluster = target_run->first_cluster; cluster < layout->cluster_count; ++cluster)
++        {
++            float width = layout->clustermetrics[cluster].width;
++
++            if (pointX < left + width)
++            {
++                if (pointX >= left + width / 2.0f)
++                    *is_trailinghit = TRUE;
++                break;
++            }
++            left += width;
++            position += layout->clustermetrics[cluster].length;
++        }
++    }
++
++    position = min(position, layout->length);
+ 
+-    return E_NOTIMPL;
++    return dwritetextlayout_HitTestTextPosition(iface, position, *is_trailinghit, &dummy_x, &dummy_y, metrics);
+ }
+ 
++
+ static struct layout_effective_run *layout_get_effective_run_for_position(struct dwrite_textlayout *layout,
+         UINT32 position)
+ {
+@@ -4418,6 +4501,18 @@
+         UINT8 level;
+ 
+         run = layout_get_trailing_effective_run(layout);
++        if (!run)
++        {
++            FIXME("No trailing run for empty layout %p.\n", layout);
++            memset(metrics, 0, sizeof(*metrics));
++            metrics->textPosition = position;
++            metrics->length = 0;
++            metrics->isText = TRUE;
++            *point_x = 0.0f;
++            *point_y = 0.0f;
++            return S_OK;
++        }
++
+         level = run->object ? run->bidi_level : run->run->u.regular.run.bidiLevel;
+ 
+         metrics->textPosition = position;
+@@ -4498,10 +4593,77 @@
+     UINT32 textPosition, UINT32 textLength, FLOAT originX, FLOAT originY,
+     DWRITE_HIT_TEST_METRICS *metrics, UINT32 max_metricscount, UINT32* actual_metricscount)
+ {
+-    FIXME("%p, %u, %u, %f, %f, %p, %u, %p): stub\n", iface, textPosition, textLength, originX, originY, metrics,
++    struct dwrite_textlayout *layout = impl_from_IDWriteTextLayout4(iface);
++    DWRITE_HIT_TEST_METRICS start_metrics, end_metrics;
++    UINT32 range_start, range_end;
++    HRESULT hr;
++    FLOAT x1, y1, x2, y2;
++
++    TRACE("%p, %u, %u, %f, %f, %p, %u, %p.\n", iface, textPosition, textLength, originX, originY, metrics,
+         max_metricscount, actual_metricscount);
+ 
+-    return E_NOTIMPL;
++    if (FAILED(hr = layout_compute_effective_runs(layout)))
++        return hr;
++
++    if (actual_metricscount)
++        *actual_metricscount = 1;
++
++    range_start = min(textPosition, layout->length);
++    range_end = min(textPosition + textLength, layout->length);
++
++    if (!max_metricscount)
++        return S_OK;
++
++    if (!metrics)
++        return E_INVALIDARG;
++
++    if (range_start == range_end)
++    {
++        if (FAILED(hr = dwritetextlayout_HitTestTextPosition(iface, range_start, FALSE, &x1, &y1, &start_metrics)))
++            return hr;
++        metrics[0] = start_metrics;
++        metrics[0].length = 0;
++        return S_OK;
++    }
++
++    if (FAILED(hr = dwritetextlayout_HitTestTextPosition(iface, range_start, FALSE, &x1, &y1, &start_metrics)))
++        return hr;
++    if (FAILED(hr = dwritetextlayout_HitTestTextPosition(iface, range_end, FALSE, &x2, &y2, &end_metrics)))
++        return hr;
++
++    metrics[0].textPosition = range_start;
++    metrics[0].length = range_end - range_start;
++    metrics[0].bidiLevel = start_metrics.bidiLevel;
++    metrics[0].isText = start_metrics.isText;
++    metrics[0].isTrimmed = start_metrics.isTrimmed;
++
++    if (start_metrics.top == end_metrics.top)
++    {
++        metrics[0].top = start_metrics.top;
++        metrics[0].height = start_metrics.height;
++        if (x1 <= x2)
++        {
++            metrics[0].left = x1;
++            metrics[0].width = x2 - x1;
++        }
++        else
++        {
++            metrics[0].left = x2;
++            metrics[0].width = x1 - x2;
++        }
++    }
++    else
++    {
++        /* Multi-line: fall back to the whole layout rectangle. This is not
++         * pixel-perfect for selections spanning multiple lines, but it avoids
++         * crashes in callers such as AviUtl2's EditControl::drawSelectRange(). */
++        metrics[0].left = 0.0f;
++        metrics[0].width = layout->metrics.width;
++        metrics[0].height = layout->metrics.height;
++        metrics[0].top = start_metrics.top < end_metrics.top ? start_metrics.top : end_metrics.top;
++    }
++
++    return S_OK;
+ }
+ 
+ static HRESULT WINAPI dwritetextlayout1_SetPairKerning(IDWriteTextLayout4 *iface, BOOL is_pairkerning_enabled,

@@ -1,0 +1,27 @@
+--- a/dlls/wined3d/glsl_shader.c
++++ b/dlls/wined3d/glsl_shader.c
+@@ -11411,8 +11411,22 @@
+ 
+ static BOOL shader_glsl_color_fixup_supported(struct color_fixup_desc fixup)
+ {
+-    /* We support everything except YUV conversions. */
+-    return !is_complex_fixup(fixup);
++    /* Support YUY2/UYVY/YV12/NV12/YUV complex fixups (the GLSL blitter
++     * implements them in gen_packed_yuv_read / glsl_blitter_generate_yuv_shader)
++     * in addition to the standard non-complex fixups. P8 stays unsupported. */
++    if (!is_complex_fixup(fixup))
++        return TRUE;
++    switch (get_complex_fixup(fixup))
++    {
++        case COMPLEX_FIXUP_YUY2:
++        case COMPLEX_FIXUP_UYVY:
++        case COMPLEX_FIXUP_YV12:
++        case COMPLEX_FIXUP_NV12:
++        case COMPLEX_FIXUP_YUV:
++            return TRUE;
++        default:
++            return FALSE;
++    }
+ }
+ 
+ static const SHADER_HANDLER shader_glsl_instruction_handler_table[WINED3DSIH_TABLE_SIZE] =

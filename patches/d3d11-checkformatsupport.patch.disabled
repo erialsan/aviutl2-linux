@@ -1,0 +1,14 @@
+--- a/dlls/d3d11/device.c
++++ b/dlls/d3d11/device.c
+@@ -4659,9 +4659,8 @@
+             continue;
+         if (hr != WINED3D_OK)
+         {
+-            WARN("Failed to check device format support, hr %#lx.\n", hr);
+-            wined3d_mutex_unlock();
+-            return E_FAIL;
++            WARN("Ignoring unsupported device format check (%u/%u), hr %#lx.\n", i, format, hr);
++            continue;
+         }
+ 
+         *format_support |= flag_mapping[i].flag;

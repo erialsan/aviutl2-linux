@@ -1,0 +1,30 @@
+# Build artifacts
+wine-custom/
+wine-src/
+pfx-custom/
+pfx-ge/
+pfx-proton/
+ge-local/
+.cache/
+logs/
+
+# Test files
+test_*.avi
+test_*.mp4
+test_*.aup2
+sample-*.avi
+file_example_*
+
+# Build logs
+build.log
+
+# Downloads
+*.tar.gz
+*.tar.xz
+valve-wine/
+wine-proton_11.0/
+proton-ge-src/
+
+# Editor
+*.pyc
+__pycache__/

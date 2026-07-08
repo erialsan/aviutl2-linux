@@ -1,0 +1,107 @@
+--- a/dlls/wined3d/texture.c
++++ b/dlls/wined3d/texture.c
+@@ -1341,7 +1341,11 @@
+             layer_count, level_count, flags, device, parent, parent_ops, sub_resources, texture_ops);
+ 
+     if (!desc->width || !desc->height || !desc->depth)
++    {
++        WARN("wined3d_texture_init invalid zero dimension %ux%ux%u.\n",
++                desc->width, desc->height, desc->depth);
+         return WINED3DERR_INVALIDCALL;
++    }
+ 
+     if (desc->resource_type == WINED3D_RTYPE_TEXTURE_3D && layer_count != 1)
+     {
+@@ -1355,6 +1359,7 @@
+      * that are reported as supported. */
+     if (WINED3DFMT_UNKNOWN >= desc->format)
+     {
++        WARN("Texture cannot be created with format %u (unknown).\n", desc->format);
+         WARN("Texture cannot be created with a format of WINED3DFMT_UNKNOWN.\n");
+         return WINED3DERR_INVALIDCALL;
+     }
+@@ -1374,6 +1379,9 @@
+         {
+             if (!(desc->usage & WINED3DUSAGE_SCRATCH))
+             {
++            WARN("NPOT texture %ux%ux%u levels %u layers %u type %s without unconditional NPOT support.\n",
++                    desc->width, desc->height, desc->depth, level_count,
++                    layer_count, debug_d3dresourcetype(desc->resource_type));
+                 WARN("Attempted to create a mipmapped/cube/array/volume NPOT "
+                         "texture without unconditional NPOT support.\n");
+                 return WINED3DERR_INVALIDCALL;
+@@ -1398,6 +1406,8 @@
+          *    the render target. */
+         if (desc->access & WINED3D_RESOURCE_ACCESS_GPU)
+         {
++            WARN("Dimensions (%ux%u) exceed the maximum texture size %u.\n",
++                    desc->width, desc->height, d3d_info->limits.texture_size);
+             WARN("Dimensions (%ux%u) exceed the maximum texture size.\n", desc->width, desc->height);
+             return WINED3DERR_NOTAVAILABLE;
+         }
+@@ -1428,7 +1438,10 @@
+     }
+ 
+     if (!offset)
++    {
++        WARN("wined3d_texture_init zero offset for format %s.\n", debug_d3dformat(desc->format));
+         return WINED3DERR_INVALIDCALL;
++    }
+ 
+     /* Ensure the last mip-level is at least large enough to hold a single
+      * compressed block. It is questionable how useful these mip-levels are to
+@@ -1457,6 +1470,9 @@
+                 && desc->resource_type != WINED3D_RTYPE_TEXTURE_3D && !once++)
+             ERR_(winediag)("The application tried to create a DXTn texture, but the driver does not support them.\n");
+ 
++        WARN("Failed to initialize resource for format %s %ux%ux%u bind %s, returning %#lx\n",
++                debug_d3dformat(desc->format), desc->width, desc->height, desc->depth,
++                wined3d_debug_bind_flags(desc->bind_flags), hr);
+         WARN("Failed to initialize resource, returning %#lx\n", hr);
+         return hr;
+     }
+@@ -1862,7 +1878,11 @@
+ 
+     if (FAILED(hr = device->adapter->adapter_ops->adapter_create_texture(device, desc,
+             layer_count, level_count, flags, parent, parent_ops, texture)))
++    {
++        WARN("wined3d_texture_create failed for format %s, hr %#lx.\n",
++                debug_d3dformat(desc->format), hr);
+         return hr;
++    }
+ 
+     /* FIXME: We'd like to avoid ever allocating system memory for the texture
+      * in this case. */
+--- a/dlls/wined3d/resource.c
++++ b/dlls/wined3d/resource.c
+@@ -136,6 +136,8 @@
+         if ((bind_flags & WINED3D_BIND_SHADER_RESOURCE)
+                 && !(format->caps[gl_type] & WINED3D_FORMAT_CAP_TEXTURE))
+         {
++            WARN("Format %s cannot be used for texturing on gl_type %u (caps %#x).\n",
++                    debug_d3dformat(format->id), gl_type, format->caps[gl_type]);
+             WARN("Format %s cannot be used for texturing.\n", debug_d3dformat(format->id));
+             continue;
+         }
+@@ -151,6 +153,9 @@
+         }
+         else
+         {
++            WARN("Did not find a suitable GL resource type for resource type %s format %s bind %s.\n",
++                    debug_d3dresourcetype(type), debug_d3dformat(format->id),
++                    wined3d_debug_bind_flags(bind_flags));
+             WARN("Did not find a suitable GL resource type for resource type %s.\n",
+                     debug_d3dresourcetype(type));
+             return WINED3DERR_INVALIDCALL;
+@@ -164,7 +169,11 @@
+         UINT width_mask = format->block_width - 1;
+         UINT height_mask = format->block_height - 1;
+         if (width & width_mask || height & height_mask)
++        {
++            WARN("Block format %s requires aligned size, got %ux%u (block %ux%u).\n",
++                    debug_d3dformat(format->id), width, height, format->block_width, format->block_height);
+             return WINED3DERR_INVALIDCALL;
++        }
+     }
+ 
+     resource->ref = 1;

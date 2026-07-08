@@ -1,0 +1,32 @@
+--- a/dlls/d3d11/utils.c
++++ b/dlls/d3d11/utils.c
+@@ -312,6 +312,7 @@
+         case WINED3DFMT_BC7_UNORM: return DXGI_FORMAT_BC7_UNORM;
+         case WINED3DFMT_BC7_UNORM_SRGB: return DXGI_FORMAT_BC7_UNORM_SRGB;
+         case WINED3DFMT_NV12_PLANAR: return DXGI_FORMAT_NV12;
++        case WINED3DFMT_NV12: return DXGI_FORMAT_NV12;
+         case WINED3DFMT_YUY2: return DXGI_FORMAT_YUY2;
+         case WINED3DFMT_B4G4R4A4_UNORM: return DXGI_FORMAT_B4G4R4A4_UNORM;
+         default:
+@@ -392,8 +393,9 @@
+         case DXGI_FORMAT_A8_UNORM: return WINED3DFMT_A8_UNORM;
+         case DXGI_FORMAT_R1_UNORM: return WINED3DFMT_R1_UNORM;
+         case DXGI_FORMAT_R9G9B9E5_SHAREDEXP: return WINED3DFMT_R9G9B9E5_SHAREDEXP;
+-        case DXGI_FORMAT_R8G8_B8G8_UNORM: return WINED3DFMT_R8G8_B8G8_UNORM;
+-        case DXGI_FORMAT_G8R8_G8B8_UNORM: return WINED3DFMT_G8R8_G8B8_UNORM;
++        /* These packed 4:2:2 formats use the same memory layout as UYVY/YUY2. */
++        case DXGI_FORMAT_R8G8_B8G8_UNORM: return WINED3DFMT_UYVY;
++        case DXGI_FORMAT_G8R8_G8B8_UNORM: return WINED3DFMT_YUY2;
+         case DXGI_FORMAT_BC1_TYPELESS: return WINED3DFMT_BC1_TYPELESS;
+         case DXGI_FORMAT_BC1_UNORM: return WINED3DFMT_BC1_UNORM;
+         case DXGI_FORMAT_BC1_UNORM_SRGB: return WINED3DFMT_BC1_UNORM_SRGB;
+@@ -424,7 +426,8 @@
+         case DXGI_FORMAT_BC7_TYPELESS: return WINED3DFMT_BC7_TYPELESS;
+         case DXGI_FORMAT_BC7_UNORM: return WINED3DFMT_BC7_UNORM;
+         case DXGI_FORMAT_BC7_UNORM_SRGB: return WINED3DFMT_BC7_UNORM_SRGB;
+-        case DXGI_FORMAT_NV12: return WINED3DFMT_NV12_PLANAR;
++        /* NV12_PLANAR is intended for Vulkan; use the OpenGL-capable NV12 fourcc here. */
++        case DXGI_FORMAT_NV12: return WINED3DFMT_NV12;
+         case DXGI_FORMAT_YUY2: return WINED3DFMT_YUY2;
+         case DXGI_FORMAT_B4G4R4A4_UNORM: return WINED3DFMT_B4G4R4A4_UNORM;
+         default:
