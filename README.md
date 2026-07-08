@@ -132,3 +132,4 @@ Intel Mesa Vulkan ドライバでは NV12 の U/V チャンネルが逆転する
 
 スクリプト・設定ファイル類: MIT License
 AviUtl2 本体の権利: 作者 KEN くん様に帰属
+-# もしも問題があったら消します
