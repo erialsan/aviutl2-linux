@@ -47,3 +47,5 @@ dxvk-*.tar.gz
 # Build artifacts
 *.tar.gz
 *.tar.xz
+dxvk-src/
+.wine-base/
