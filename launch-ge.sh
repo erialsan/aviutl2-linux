@@ -5,6 +5,11 @@ set -euo pipefail
 # AviUtl2 + Proton GE + DXVK standalone launcher
 # No Steam required. Uses GE's wine + DXVK v2.7.1 (Vulkan).
 #
+# Catalog integration:
+#   --catalog <command> [args]  — Run catalog CLI tool instead of launching
+#   CATALOG_AUTO_CHECK=1       — Check for package updates after launch
+#
+#
 # Prerequisite: Proton GE must be installed first.
 #   mkdir -p ~/.local/share/Steam/compatibilitytools.d
 #   curl -L -o GE-Proton11-1.tar.gz https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton11-1/GE-Proton11-1.tar.gz
@@ -13,6 +18,17 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR"
+
+# --- Catalog integration ---
+CATALOG_CLI="$PROJECT_DIR/tools/catalog/catalog-cli.py"
+
+# If --catalog is passed, run catalog command instead of launching AviUtl2
+if [[ "${1:-}" == "--catalog" ]]; then
+    shift
+    export WINEPREFIX="${WINEPREFIX:-$PROJECT_DIR/pfx-ge/pfx}"
+    export AVIUTL2_ROOT="$PROJECT_DIR"
+    exec python3 "$CATALOG_CLI" "$@"
+fi
 
 # --- Proton GE path ---
 GE_DIR="${GE_DIR:-$HOME/.local/share/Steam/compatibilitytools.d/GE-Proton11-1}"
@@ -70,14 +86,29 @@ if [[ "$(cat "$DXVK_STAMP" 2>/dev/null)" != "$DXVK_VER" ]]; then
     echo "$DXVK_VER" > "$DXVK_STAMP"
 fi
 
-# --- Install native d3dcompiler_47 ---
+# --- Install native d3dcompiler_47 (if not already present, e.g. from setup.sh) ---
 mkdir -p "$PFX/drive_c/windows/system32" "$PFX/drive_c/windows/syswow64"
-if [[ ! -f "$PFX/drive_c/windows/system32/d3dcompiler_47.dll" ]]; then
-    if [[ -f "$PROJECT_DIR/pfx-custom/drive_c/windows/system32/d3dcompiler_47.dll" ]]; then
-        cp "$PROJECT_DIR/pfx-custom/drive_c/windows/system32/d3dcompiler_47.dll" \
-            "$PFX/drive_c/windows/system32/" 2>/dev/null || true
-        cp "$PROJECT_DIR/pfx-custom/drive_c/windows/syswow64/d3dcompiler_47.dll" \
-            "$PFX/drive_c/windows/syswow64/" 2>/dev/null || true
+D3D_DEST64="$PFX/drive_c/windows/system32/d3dcompiler_47.dll"
+D3D_DEST32="$PFX/drive_c/windows/syswow64/d3dcompiler_47.dll"
+if [[ ! -f "$D3D_DEST64" ]]; then
+    CACHE_DIR="$PROJECT_DIR/.cache/d3dcompiler_47"
+    mkdir -p "$CACHE_DIR" "$(dirname "$D3D_DEST64")" "$(dirname "$D3D_DEST32")"
+    CAB64_URL="https://download.microsoft.com/download/B/0/C/B0C80BA3-8AD6-4958-810B-6882485230B5/standalonesdk/Installers/61d57a7a82309cd161a854a6f4619e52.cab"
+    CAB32_URL="https://download.microsoft.com/download/B/0/C/B0C80BA3-8AD6-4958-810B-6882485230B5/standalonesdk/Installers/2630bae9681db6a9f6722366f47d055c.cab"
+    CAB64="$CACHE_DIR/61d57a7a82309cd161a854a6f4619e52.cab"
+    CAB32="$CACHE_DIR/2630bae9681db6a9f6722366f47d055c.cab"
+    if command -v bsdtar >/dev/null 2>&1; then
+        echo "[launch-ge] Downloading native d3dcompiler_47..."
+        curl -fL -o "$CAB64" "$CAB64_URL" 2>/dev/null || true
+        curl -fL -o "$CAB32" "$CAB32_URL" 2>/dev/null || true
+        if [[ -f "$CAB64" ]]; then
+            bsdtar -C "$CACHE_DIR" -xf "$CAB64" 2>/dev/null || true
+            cp "$CACHE_DIR/fil3585cb2ea5db13cc0838f8d06b5c9679" "$D3D_DEST64" 2>/dev/null || true
+        fi
+        if [[ -f "$CAB32" ]]; then
+            bsdtar -C "$CACHE_DIR" -xf "$CAB32" 2>/dev/null || true
+            cp "$CACHE_DIR/fila319f706acfa16d6707473ebf29bdc7f" "$D3D_DEST32" 2>/dev/null || true
+        fi
     fi
 fi
 
@@ -114,7 +145,6 @@ setup_encoders() {
 }
 
 # --- Environment ---
-export WINEARCH=win64
 export WINEPREFIX="$PFX"
 export WINEDLLOVERRIDES="d3d11,dxgi,d3d10core=n;d3dcompiler_47=n"
 # Disable DXVK hardware YCbCr sampler (Intel GPU U/V swap workaround)
@@ -129,16 +159,22 @@ export LD_LIBRARY_PATH="$GE_DIR/files/lib64:$GE_DIR/files/lib:$GE_DIR/files/lib/
 # --- Apply registry overrides ---
 setup_overrides "$GE_WINE" "$PFX"
 setup_encoders
+# Export AVIUTL2_ROOT for catalog integration
+export AVIUTL2_ROOT="$PROJECT_DIR"
 
-# --- Launch AviUtl2 ---
 echo "[launch-ge] Wine:  wine-staging (Proton GE)"
 echo "[launch-ge] DXVK:  $(cat "$GE_DXVK/version" 2>/dev/null || echo 'v2.7.1')"
 echo "[launch-ge] Prefix: $PFX"
 echo "[launch-ge] Starting AviUtl2..."
 echo "[launch-ge] Note: 'D3D RDMs not supported' dialog may appear — press Enter 2x or use dismiss-dialogs.py"
-
-# Start AviUtl2 in background and dismiss dialogs
+# Start AviUtl2 in background
 "$GE_WINE" "$PROJECT_DIR/aviutl2.exe" "$@" &
+
+# Optional: check for catalog updates after launch (non-blocking)
+if [[ -n "${CATALOG_AUTO_CHECK:-}" ]] && [[ -f "$CATALOG_CLI" ]]; then
+    echo "[launch-ge] Checking for package updates..."
+    python3 "$CATALOG_CLI" update 2>&1 | sed 's/^/[catalog] /' &
+fi
 AVIUTL2_PID=$!
 
 # Auto-dismiss startup dialogs

@@ -43,14 +43,20 @@ fi
 # --- Prefix ---
 PFX_DIR="${PFX_DIR:-$PROJECT_DIR/pfx-proton}"
 
-# --- Install native d3dcompiler_47 ---
+# --- Install native d3dcompiler_47 (fallback if setup.sh not run) ---
 mkdir -p "$PFX_DIR/pfx/drive_c/windows/system32" "$PFX_DIR/pfx/drive_c/windows/syswow64"
-if [[ ! -f "$PFX_DIR/pfx/drive_c/windows/system32/d3dcompiler_47.dll" ]]; then
-    if [[ -f "$PROJECT_DIR/pfx-custom/drive_c/windows/system32/d3dcompiler_47.dll" ]]; then
-        cp "$PROJECT_DIR/pfx-custom/drive_c/windows/system32/d3dcompiler_47.dll" \
-            "$PFX_DIR/pfx/drive_c/windows/system32/" 2>/dev/null || true
-        cp "$PROJECT_DIR/pfx-custom/drive_c/windows/syswow64/d3dcompiler_47.dll" \
-            "$PFX_DIR/pfx/drive_c/windows/syswow64/" 2>/dev/null || true
+D3D_DEST64="$PFX_DIR/pfx/drive_c/windows/system32/d3dcompiler_47.dll"
+if [[ ! -f "$D3D_DEST64" ]]; then
+    CACHE_DIR="$PROJECT_DIR/.cache/d3dcompiler_47"
+    mkdir -p "$CACHE_DIR" "$(dirname "$D3D_DEST64")"
+    CAB64_URL="https://download.microsoft.com/download/B/0/C/B0C80BA3-8AD6-4958-810B-6882485230B5/standalonesdk/Installers/61d57a7a82309cd161a854a6f4619e52.cab"
+    CAB64="$CACHE_DIR/61d57a7a82309cd161a854a6f4619e52.cab"
+    if command -v bsdtar >/dev/null 2>&1; then
+        curl -fL -o "$CAB64" "$CAB64_URL" 2>/dev/null || true
+        if [[ -f "$CAB64" ]]; then
+            bsdtar -C "$CACHE_DIR" -xf "$CAB64" 2>/dev/null || true
+            cp "$CACHE_DIR/fil3585cb2ea5db13cc0838f8d06b5c9679" "$D3D_DEST64" 2>/dev/null || true
+        fi
     fi
 fi
 

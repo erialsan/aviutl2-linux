@@ -1,0 +1,29 @@
+{
+  "name": "aviutl2-catalog",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun x vite",
+    "build": "bun x vite build",
+    "preview": "bun x vite preview",
+    "tauri:dev": "bun x tauri dev",
+    "tauri:build": "bun x tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-fs": "^2",
+    "@tauri-apps/plugin-shell": "^2",
+    "@tauri-apps/plugin-process": "^2",
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4",
+    "typescript": "^5",
+    "vite": "^6"
+  }
+}

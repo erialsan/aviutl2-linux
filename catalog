@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# ============================================================
+# AviUtl2 カタログ操作 — launch-ge.sh --catalog へのラッパー
+#
+# 使い方:  ./catalog <command> [args]
+#          ./catalog sync         カタログ同期
+#          ./catalog list         パッケージ一覧
+#          ./catalog search <q>   検索
+#          ./catalog install <id> インストール
+#          ./catalog --help       ヘルプ
+# ============================================================
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+exec "$SCRIPT_DIR/launch-ge.sh" --catalog "$@"

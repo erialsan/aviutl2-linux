@@ -50,3 +50,9 @@ dxvk-*.tar.gz
 dxvk-src/
 .wine-base/
 aviutl2_v2.0.54.zip
+
+# Tauri GUI build artifacts
+catalog-gui/src-tauri/target/
+catalog-gui/node_modules/
+catalog-gui/dist/
+catalog-gui/src-tauri/icons/
